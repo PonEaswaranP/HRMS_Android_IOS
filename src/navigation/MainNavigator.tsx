@@ -1,6 +1,6 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import DashboardScreen from '../screens/DashboardScreen';
+import MainLayout from '../screens/MainLayout';
 import AttendanceScreen from '../screens/AttendanceScreen';
 import EmployeeListScreen from '../screens/EmployeeListScreen';
 import EmployeeProfileScreen from '../screens/EmployeeProfileScreen';
@@ -25,7 +25,7 @@ const MainNavigator: React.FC = () => {
       }}>
       <Stack.Screen
         name="Dashboard"
-        component={DashboardScreen}
+        component={MainLayout}
         options={{ headerShown: false }}
       />
       <Stack.Screen

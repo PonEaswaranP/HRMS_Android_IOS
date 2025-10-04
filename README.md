@@ -429,3 +429,345 @@ Feel free to fork this project and customize it for your needs!
 ---
 
 **Built with ❤️ using React Native and TypeScript**
+
+# Role-Based Dashboard System - Implementation Guide
+
+## Overview
+This is a complete role-based dashboard system for the HRMS React Native application. The system dynamically renders different dashboards based on user access levels (HR vs Employee).
+
+## 📁 File Structure
+
+```
+src/
+├── api/
+│   └── userAPI.ts              # User API service with AsyncStorage integration
+├── screens/
+│   ├── Dashboard.tsx           # Main dashboard router component
+│   ├── EmployeeDashboard.tsx   # Employee view dashboard
+│   └── HRDashboard.tsx         # HR manager view dashboard
+└── types/
+    └── index.ts                # TypeScript interfaces (updated with UserInfo)
+```
+
+## 🔧 Components Description
+
+### 1. **userAPI.ts** - API Service Layer
+**Location:** `src/api/userAPI.ts`
+
+**Features:**
+- Uses `@react-native-async-storage/async-storage` for token management
+- Automatically attaches Bearer token to all requests
+- Implements request/response interceptors for error handling
+- Handles 401 errors by clearing expired tokens
+
+**Main Methods:**
+- `getCurrentUser()` - Fetches user data from `/api/users/me/`
+- `updateUserProfile(data)` - Updates user profile information
+- `getUserById(userId)` - Fetches specific user data (HR/Admin only)
+
+**Usage Example:**
+```typescript
+import { userAPI } from '../api/userAPI';
+
+const userData = await userAPI.getCurrentUser();
+```
+
+---
+
+### 2. **Dashboard.tsx** - Router Component
+**Location:** `src/screens/Dashboard.tsx`
+
+**Features:**
+- Displays loading indicator while fetching user data
+- Conditionally renders dashboards based on `access_level.value`
+- Implements error handling with retry functionality
+- Shows user-friendly error messages
+
+**Logic Flow:**
+1. Component mounts → Calls `getCurrentUser()`
+2. While loading → Shows `ActivityIndicator`
+3. On success → Renders appropriate dashboard:
+   - If `access_level.value === 'HR'` → `HRDashboard`
+   - Otherwise → `EmployeeDashboard`
+4. On error → Shows error message with retry option
+
+---
+
+### 3. **EmployeeDashboard.tsx** - Employee View
+**Location:** `src/screens/EmployeeDashboard.tsx`
+
+**Features:**
+- **Header Section:**
+  - Personalized greeting with user's full name
+  - Notification bell icon with badge count
+  
+- **Check-In System:**
+  - Interactive check-in/check-out button
+  - Visual state changes (color-coded)
+  - Work timer display (placeholder)
+
+- **Reports Cards:**
+  - Leave Report card showing remaining days
+  - Annual Report card showing attendance percentage
+  - Both cards are tappable for future navigation
+
+- **Recent Updates:**
+  - List of notifications and announcements
+  - Shows upcoming meetings and leave approvals
+
+- **Department & Role Info:**
+  - Displays user's department from API
+  - Shows user's role
+
+**UI Design:**
+- Clean, modern card-based layout
+- Color-coded elements (blue primary, green for success)
+- Smooth shadows and rounded corners
+- Responsive to screen sizes
+
+---
+
+### 4. **HRDashboard.tsx** - HR Manager View
+**Location:** `src/screens/HRDashboard.tsx`
+
+**Features:**
+- **Header Section:**
+  - HR Dashboard title
+  - HR manager's name
+  - Notification icon with pending request count
+
+- **Summary Cards:**
+  - Quick stats: Pending, Approved, Rejected counts
+  - Real-time updates
+
+- **Tab Navigation:**
+  - "Pending Requests" tab with badge count
+  - "History" tab for approved/rejected requests
+  - Smooth tab switching
+
+- **Leave Request Cards:**
+  - Employee avatar with initials
+  - Complete leave details (type, duration, reason)
+  - Submission date
+  - Action buttons (Approve/Reject) for pending requests
+  - Status badges for history items
+
+- **Interactive Actions:**
+  - Approve button (green) with confirmation dialog
+  - Reject button (red outline) with confirmation
+  - Success alerts after actions
+  - Real-time UI updates
+
+**Mock Data:**
+- 5 sample leave requests (3 pending, 2 in history)
+- Realistic leave types: Sick Leave, Casual Leave, Vacation
+- Sample employee names and IDs
+
+---
+
+## 📋 TypeScript Interfaces
+
+### UserInfo Interface
+```typescript
+export interface UserInfo {
+  user_id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  access_level: {
+    value: string;      // 'HR' | 'EMPLOYEE' | 'ADMIN'
+    label: string;
+  };
+  role: {
+    id: number;
+    name: string;
+    description: string;
+  };
+  organization: {
+    id: number;
+    name: string;
+  };
+  department: {
+    id: number;
+    name: string;
+  };
+  is_active: boolean;
+  date_joined: string;
+}
+```
+
+---
+
+## 🎨 Design Features
+
+### Color Palette
+- **Primary Blue:** `#007AFF` - Main brand color
+- **Success Green:** `#34C759` - Positive actions
+- **Danger Red:** `#FF3B30` - Negative actions, alerts
+- **Background:** `#f5f5f5` - App background
+- **Card White:** `#fff` - Card backgrounds
+
+### Typography
+- **Headers:** Bold, 24px
+- **Body Text:** Regular, 14-16px
+- **Labels:** 12-13px, slightly muted
+
+### Spacing & Layout
+- Consistent 16px padding
+- 12-16px card margins
+- 8-12px border radius for cards
+- Subtle shadows for depth
+
+---
+
+## 🔄 Integration Steps
+
+### Step 1: Update Navigation (if needed)
+If using navigation, update your `DashboardScreen` to use the new `Dashboard` component:
+
+```typescript
+// In DashboardScreen.tsx
+import Dashboard from './Dashboard';
+
+const DashboardScreen: React.FC = () => {
+  return <Dashboard />;
+};
+
+export default DashboardScreen;
+```
+
+### Step 2: Ensure API Endpoint Exists
+Make sure your backend has the `/api/users/me/` endpoint that returns data matching the `UserInfo` interface.
+
+### Step 3: Test with Different User Roles
+Test the system with:
+- A user with `access_level.value = 'HR'` → Should show HRDashboard
+- A user with `access_level.value = 'EMPLOYEE'` → Should show EmployeeDashboard
+
+---
+
+## 🧪 Testing Checklist
+
+### Employee Dashboard
+- [ ] Header displays correct user name
+- [ ] Notification badge shows count
+- [ ] Check-in button toggles state
+- [ ] Timer displays placeholder
+- [ ] Leave Report card is visible
+- [ ] Annual Report card is visible
+- [ ] Updates section shows items
+- [ ] Department and role display correctly
+
+### HR Dashboard
+- [ ] Header shows HR title and name
+- [ ] Summary cards show correct counts
+- [ ] Tab switching works smoothly
+- [ ] Pending tab shows only pending requests
+- [ ] History tab shows approved/rejected requests
+- [ ] Approve button shows confirmation
+- [ ] Reject button shows confirmation
+- [ ] Status updates after approval/rejection
+- [ ] Empty state shows when no items
+
+### Dashboard Router
+- [ ] Loading indicator appears on mount
+- [ ] Correct dashboard renders based on role
+- [ ] Error handling works
+- [ ] Retry functionality works
+
+---
+
+## 🚀 Future Enhancements
+
+### Employee Dashboard
+1. Implement real check-in/check-out API integration
+2. Add working timer with start/stop functionality
+3. Make report cards navigable to detailed views
+4. Implement real-time notifications
+5. Add pull-to-refresh functionality
+
+### HR Dashboard
+1. Connect to real leave management API
+2. Add filtering and search functionality
+3. Implement pagination for large datasets
+4. Add detailed leave request view
+5. Enable bulk approval/rejection
+6. Add comments/notes for leave requests
+7. Export functionality for reports
+
+### General
+1. Add loading states for actions
+2. Implement offline support
+3. Add analytics tracking
+4. Implement push notifications
+5. Add biometric authentication for check-in
+
+---
+
+## 🐛 Troubleshooting
+
+### Issue: "Cannot find module" errors
+**Solution:** Restart TypeScript server in VS Code:
+1. Press `Ctrl+Shift+P`
+2. Type "TypeScript: Restart TS Server"
+3. Press Enter
+
+### Issue: Token not being attached to requests
+**Solution:** Ensure token is stored correctly:
+```typescript
+import AsyncStorage from '@react-native-async-storage/async-storage';
+await AsyncStorage.setItem('@hrms_access_token', 'your-token-here');
+```
+
+### Issue: API endpoint returns 404
+**Solution:** Verify the API_BASE_URL in your `.env` file points to the correct backend URL.
+
+---
+
+## 📝 Notes
+
+- All components are fully typed with TypeScript
+- Components use React hooks for state management
+- AsyncStorage is used for token persistence
+- Axios is used for HTTP requests with interceptors
+- All styling is done with React Native StyleSheet
+- Components are optimized for both iOS and Android
+
+---
+
+## 👥 Component Props
+
+### Dashboard
+No props required - fetches data internally
+
+### EmployeeDashboard
+```typescript
+interface EmployeeDashboardProps {
+  userInfo: UserInfo;
+}
+```
+
+### HRDashboard
+```typescript
+interface HRDashboardProps {
+  userInfo: UserInfo;
+}
+```
+
+---
+
+## 📞 Support
+
+For issues or questions:
+1. Check the troubleshooting section above
+2. Verify all dependencies are installed
+3. Ensure API endpoints match the expected format
+4. Check AsyncStorage token storage
+
+---
+
+**Created:** October 4, 2025  
+**Version:** 1.0.0  
+**React Native Version:** 0.81.4  
+**TypeScript Version:** 5.8.3

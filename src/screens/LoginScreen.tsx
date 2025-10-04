@@ -1,27 +1,24 @@
+// screens/LoginScreen.tsx
 import React, { useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
+  TouchableOpacity,
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { Button, TextInput, ErrorMessage } from '../components';
-import { apiService } from '../api/apiService';
+import { axiosInstance } from '../api/axiosInstance';
 import { tokenStorage } from '../utils/tokenStorage';
-import { AuthStackParamList } from '../navigation/types';
+import { useNavigation } from '@react-navigation/native';
 
-type LoginScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
-
-interface Props {
-  navigation: LoginScreenNavigationProp;
-}
-
-const LoginScreen: React.FC<Props> = ({ navigation }) => {
-  const [username, setUsername] = useState('');
+const LoginScreen: React.FC = () => {
+  const navigation = useNavigation();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -30,37 +27,56 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     setError('');
 
     // Validation
-    if (!username.trim()) {
-      setError('Please enter your username');
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter both email and password');
       return;
     }
-    if (!password.trim()) {
-      setError('Please enter your password');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await apiService.login({ username, password });
+      const response = await axiosInstance.post('/login/', {
+        email: email.trim(),
+        password: password,
+      });
+
+      const { access, refresh } = response.data;
       
-      // Store tokens
-      await tokenStorage.setTokens(response.access, response.refresh);
+      if (access) {
+        await tokenStorage.setTokens(access, refresh || access);
+        
+        // Clear form
+        setEmail('');
+        setPassword('');
+        
+        // Navigation handled by RootNavigator
+        Alert.alert('Success', 'Logged in successfully!');
+      } else {
+        setError('Invalid response from server');
+      }
       
-      // Navigation will be handled automatically by the auth context
     } catch (err: any) {
       console.error('Login error:', err);
-      if (err.response?.data) {
+      
+      if (err.response) {
         const errorData = err.response.data;
-        if (errorData.detail) {
-          setError(errorData.detail);
-        } else if (errorData.non_field_errors) {
-          setError(errorData.non_field_errors[0]);
-        } else {
-          setError('Invalid username or password');
-        }
+        setError(
+          errorData.detail || 
+          errorData.email?.[0] || 
+          errorData.password?.[0] ||
+          errorData.non_field_errors?.[0] ||
+          'Invalid email or password'
+        );
+      } else if (err.request) {
+        setError('Network error. Please check your connection');
       } else {
-        setError('Network error. Please check your connection.');
+        setError('An unexpected error occurred');
       }
     } finally {
       setLoading(false);
@@ -73,49 +89,64 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+        
         <View style={styles.headerContainer}>
           <Text style={styles.title}>HRMS Login</Text>
           <Text style={styles.subtitle}>Welcome back! Please login to continue.</Text>
         </View>
 
         <View style={styles.formContainer}>
-          <ErrorMessage message={error} />
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-          <TextInput
-            label="Username"
-            placeholder="Enter your username"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!loading}
-          />
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your email"
+              placeholderTextColor="#999"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              editable={!loading}
+              testID="email-input"
+            />
+          </View>
 
-          <TextInput
-            label="Password"
-            placeholder="Enter your password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            editable={!loading}
-          />
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your password"
+              placeholderTextColor="#999"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              editable={!loading}
+              testID="password-input"
+            />
+          </View>
 
-          <Button
-            title="Login"
+          <TouchableOpacity
+            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
             onPress={handleLogin}
-            loading={loading}
-            style={styles.loginButton}
-          />
-
-          <Button
-            title="Don't have an account? Register"
-            onPress={() => navigation.navigate('Register')}
-            variant="secondary"
             disabled={loading}
-            style={styles.registerButton}
-          />
+            activeOpacity={0.8}
+            testID="login-button">
+            {loading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.loginButtonText}>Login</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -146,25 +177,67 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+    paddingHorizontal: 20,
   },
   formContainer: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 20,
+    padding: 24,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  errorContainer: {
+    backgroundColor: '#fee',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f00',
+  },
+  errorText: {
+    color: '#c00',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#f9f9f9',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#333',
   },
   loginButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 10,
+    minHeight: 48,
   },
-  registerButton: {
-    marginTop: 10,
+  loginButtonDisabled: {
+    backgroundColor: '#999',
+    opacity: 0.7,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

@@ -38,6 +38,34 @@ export interface User {
   is_superuser?: boolean;
 }
 
+// UserInfo for Dashboard (detailed user information)
+export interface UserInfo {
+  user_id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  access_level: {
+    value: string;
+    label: string;
+  };
+  role: {
+    id: number;
+    name: string;
+    description: string;
+  };
+  organization: {
+    id: number;
+    name: string;
+  };
+  department: {
+    id: number;
+    name: string;
+  };
+  is_active: boolean;
+  date_joined: string;
+}
+
 // Employee Types
 export interface Employee {
   id: number;
