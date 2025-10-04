@@ -3,7 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../screens/LoginScreen';
-import HomeScreen from '../screens/HomeScreen';
+import EmployeeHomeScreen from '../screens/EmployeeHomeScreen';
+import HRHomepage from '../screens/HRHomepage';
 import { tokenStorage } from '../utils/tokenStorage';
 import { ActivityIndicator, View } from 'react-native';
 import LogoutButton from '../components/LogoutButton';
@@ -12,19 +13,24 @@ const Stack = createStackNavigator();
 
 const RootNavigator: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [userRole, setUserRole] = useState<'employee' | 'hr' | null>(null);
 
   useEffect(() => {
     checkAuthStatus();
-    
     // Set up interval to check auth status periodically
     const interval = setInterval(checkAuthStatus, 2000);
-    
     return () => clearInterval(interval);
   }, []);
 
   const checkAuthStatus = async () => {
     const loggedIn = await tokenStorage.isLoggedIn();
     setIsLoggedIn(loggedIn);
+    if (loggedIn) {
+      const role = await tokenStorage.getUserRole();
+      setUserRole(role);
+    } else {
+      setUserRole(null);
+    }
   };
 
   // Loading state
@@ -45,12 +51,21 @@ const RootNavigator: React.FC = () => {
             component={LoginScreen}
             options={{ headerShown: false }}
           />
+        ) : userRole === 'hr' ? (
+          <Stack.Screen 
+            name="HRHomepage" 
+            component={HRHomepage}
+            options={{
+              title: 'HR Dashboard',
+              headerRight: () => <LogoutButton />,
+            }}
+          />
         ) : (
           <Stack.Screen 
-            name="Home" 
-            component={HomeScreen}
+            name="EmployeeHomeScreen" 
+            component={EmployeeHomeScreen}
             options={{
-              title: 'HRMS Dashboard',
+              title: 'Employee Dashboard',
               headerRight: () => <LogoutButton />,
             }}
           />

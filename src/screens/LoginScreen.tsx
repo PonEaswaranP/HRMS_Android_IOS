@@ -16,12 +16,18 @@ import { axiosInstance } from '../api/axiosInstance';
 import { tokenStorage } from '../utils/tokenStorage';
 import { useNavigation } from '@react-navigation/native';
 
+
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [role, setRole] = useState<'employee' | 'hr'>('employee');
+
+  // Development login shortcut
+  const DEV_EMAIL = 'dev@dev.com';
+  const DEV_PASSWORD = 'devpassword';
 
   const handleLogin = async () => {
     setError('');
@@ -29,6 +35,18 @@ const LoginScreen: React.FC = () => {
     // Validation
     if (!email.trim() || !password.trim()) {
       setError('Please enter both email and password');
+      return;
+    }
+
+
+    // Development login
+    if (email.trim() === DEV_EMAIL && password === DEV_PASSWORD) {
+      await tokenStorage.setTokens('dev_token', 'dev_refresh_token');
+      await tokenStorage.setUserRole(role); // Store role
+      setLoading(false);
+      Alert.alert('Development Login', `Logged in as ${role === 'employee' ? 'Employee' : 'HR'}!`);
+      setEmail('');
+      setPassword('');
       return;
     }
 
@@ -48,15 +66,15 @@ const LoginScreen: React.FC = () => {
 
       const { access, refresh } = response.data;
       
+
       if (access) {
         await tokenStorage.setTokens(access, refresh || access);
-        
+        await tokenStorage.setUserRole(role); // Store role
         // Clear form
         setEmail('');
         setPassword('');
-        
         // Navigation handled by RootNavigator
-        Alert.alert('Success', 'Logged in successfully!');
+        Alert.alert('Success', `Logged in as ${role === 'employee' ? 'Employee' : 'HR'}!`);
       } else {
         setError('Invalid response from server');
       }
@@ -92,9 +110,37 @@ const LoginScreen: React.FC = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         
+
         <View style={styles.headerContainer}>
           <Text style={styles.title}>HRMS Login</Text>
           <Text style={styles.subtitle}>Welcome back! Please login to continue.</Text>
+        </View>
+
+        {/* Role Selection */}
+        <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 16 }}>
+          <TouchableOpacity
+            style={{
+              backgroundColor: role === 'employee' ? '#007AFF' : '#eee',
+              padding: 10,
+              borderRadius: 8,
+              marginRight: 8,
+            }}
+            onPress={() => setRole('employee')}
+            disabled={loading}
+          >
+            <Text style={{ color: role === 'employee' ? '#fff' : '#333', fontWeight: 'bold' }}>Employee Login</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              backgroundColor: role === 'hr' ? '#007AFF' : '#eee',
+              padding: 10,
+              borderRadius: 8,
+            }}
+            onPress={() => setRole('hr')}
+            disabled={loading}
+          >
+            <Text style={{ color: role === 'hr' ? '#fff' : '#333', fontWeight: 'bold' }}>HR Login</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.formContainer}>

@@ -1,310 +1,159 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Image,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { tokenStorage } from '../utils/tokenStorage';
-import { userAPI } from '../api/userAPI';
-import { UserInfo } from '../types';
 
-interface SidebarProps {
-  userInfo: UserInfo;
-  currentRoute: string;
-  onNavigate: (route: string) => void;
-  onClose: () => void;
-}
+import React from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, Animated } from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
 
-interface MenuItem {
-  id: string;
-  title: string;
-  icon: string;
-  route: string;
-  accessLevels?: string[];
-}
-
-const menuItems: MenuItem[] = [
+// Example menu structure with nested submenus
+const menuItems = [
+  { id: 'home', label: 'Home', icon: 'home', route: 'Home' },
   {
-    id: 'dashboard',
-    title: 'Dashboard',
-    icon: '🏠',
-    route: 'Dashboard',
-  },
-  {
-    id: 'profile',
-    title: 'Profile',
-    icon: '👤',
-    route: 'Profile',
+    id: 'employee',
+    label: 'Employee Management',
+    icon: 'users',
+    children: [
+      { id: 'employee-profiles', label: 'Employee Profiles', icon: 'user', route: 'EmployeeProfiles' },
+      { id: 'employee-directory', label: 'Employee Directory', icon: 'users', route: 'EmployeeDirectory' },
+      { id: 'profile-management', label: 'Profile Management', icon: 'user', route: 'ProfileManagement' },
+    ]
   },
   {
     id: 'attendance',
-    title: 'Attendance',
-    icon: '⏰',
-    route: 'Attendance',
+    label: 'Attendance',
+    icon: 'clock',
+    children: [
+      { id: 'daily-attendance', label: 'Daily Attendance', icon: 'calendar', route: 'DailyAttendance' },
+      { id: 'monthly-calendar', label: 'Monthly Calendar', icon: 'calendar', route: 'MonthlyCalendar' },
+    ]
   },
-  {
-    id: 'leave',
-    title: 'Leave Management',
-    icon: '📅',
-    route: 'Leave',
-  },
-  {
-    id: 'payslip',
-    title: 'Payslips',
-    icon: '💰',
-    route: 'Payslip',
-  },
-  {
-    id: 'employees',
-    title: 'Employee List',
-    icon: '👥',
-    route: 'EmployeeList',
-    accessLevels: ['HR', 'Manager'],
-  },
+  { id: 'settings', label: 'Settings', icon: 'settings', route: 'Settings' },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({
-  userInfo,
-  currentRoute,
-  onNavigate,
-  onClose,
-}) => {
-  const [loggingOut, setLoggingOut] = useState(false);
+const Sidebar = ({ navigation, isCollapsed, onToggle, onLogout }) => {
+  const [expandedMenus, setExpandedMenus] = React.useState([]);
+  const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            setLoggingOut(true);
-            try {
-              // Call the API logout endpoint
-              await userAPI.logout();
-              onClose();
-            } catch (error) {
-              console.error('Logout error:', error);
-              Alert.alert(
-                'Logout Error',
-                'Failed to logout properly, but you have been logged out locally.',
-                [{ text: 'OK' }]
-              );
-              onClose();
-            } finally {
-              setLoggingOut(false);
-            }
-          },
-        },
-      ]
+  const toggleMenu = (id) => {
+    setExpandedMenus((prev) =>
+      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
     );
   };
 
-  const filteredMenuItems = menuItems.filter(item => {
-    if (!item.accessLevels) return true;
-    return item.accessLevels.includes(userInfo.access_level.value);
-  });
-
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.sidebar, isCollapsed && styles.collapsed]}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.profileSection}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>
-              {userInfo.first_name.charAt(0)}{userInfo.last_name.charAt(0)}
-            </Text>
-          </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{userInfo.full_name}</Text>
-            <Text style={styles.userRole}>{userInfo.role.name}</Text>
-            <Text style={styles.userDepartment}>{userInfo.department.name}</Text>
-          </View>
-        </View>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Text style={styles.closeButtonText}>✕</Text>
+        <Text style={styles.logo}>MH-HR</Text>
+        <TouchableOpacity onPress={onToggle}>
+          <Icon name={isCollapsed ? 'chevron-right' : 'chevron-left'} size={24} />
         </TouchableOpacity>
       </View>
 
-      {/* Menu Items */}
-      <ScrollView style={styles.menuContainer} showsVerticalScrollIndicator={false}>
-        {filteredMenuItems.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            style={[
-              styles.menuItem,
-              currentRoute === item.route && styles.activeMenuItem,
-            ]}
-            onPress={() => {
-              onNavigate(item.route);
-              onClose();
-            }}>
-            <Text style={styles.menuIcon}>{item.icon}</Text>
-            <Text
-              style={[
-                styles.menuText,
-                currentRoute === item.route && styles.activeMenuText,
-              ]}>
-              {item.title}
-            </Text>
-          </TouchableOpacity>
+      {/* Profile */}
+      <TouchableOpacity style={styles.profile} onPress={() => navigation.navigate('Profile')}>
+        <Icon name="user" size={32} />
+        {!isCollapsed && (
+          <View style={{ marginLeft: 10 }}>
+            <Text style={styles.profileName}>HR</Text>
+            <Text style={styles.profileRole}>Profile</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {/* Menu */}
+      <ScrollView style={styles.menu}>
+        {menuItems.map((item) => (
+          <View key={item.id}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => item.children ? toggleMenu(item.id) : navigation.navigate(item.route)}
+            >
+              <Icon name={item.icon} size={20} />
+              {!isCollapsed && <Text style={styles.menuLabel}>{item.label}</Text>}
+              {item.children && !isCollapsed && (
+                <Icon
+                  name={expandedMenus.includes(item.id) ? 'chevron-down' : 'chevron-right'}
+                  size={16}
+                  style={{ marginLeft: 'auto' }}
+                />
+              )}
+            </TouchableOpacity>
+            {/* Submenu */}
+            {item.children && expandedMenus.includes(item.id) && !isCollapsed && (
+              <View style={styles.subMenu}>
+                {item.children.map((child) => (
+                  <TouchableOpacity
+                    key={child.id}
+                    style={styles.subMenuItem}
+                    onPress={() => navigation.navigate(child.route)}
+                  >
+                    <Icon name={child.icon} size={16} />
+                    <Text style={styles.menuLabel}>{child.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
         ))}
       </ScrollView>
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        <TouchableOpacity 
-          style={[styles.logoutButton, loggingOut && styles.logoutButtonDisabled]} 
-          onPress={handleLogout}
-          disabled={loggingOut}>
-          {loggingOut ? (
-            <ActivityIndicator size="small" color="#ff4444" style={styles.logoutIcon} />
-          ) : (
-            <Text style={styles.logoutIcon}>🚪</Text>
-          )}
-          <Text style={styles.logoutText}>
-            {loggingOut ? 'Logging out...' : 'Logout'}
-          </Text>
+      {/* Bottom Actions */}
+      <View style={styles.bottom}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => setShowLogoutConfirm(true)}>
+          <Icon name="log-out" size={20} color="red" />
+          {!isCollapsed && <Text style={[styles.menuLabel, { color: 'red' }]}>Logout</Text>}
         </TouchableOpacity>
       </View>
-    </View>
+
+      {/* Logout Confirmation Modal */}
+      <Modal visible={showLogoutConfirm} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text>Are you sure you want to logout?</Text>
+            <View style={{ flexDirection: 'row', marginTop: 20 }}>
+              <TouchableOpacity onPress={() => setShowLogoutConfirm(false)} style={styles.modalButton}>
+                <Text>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowLogoutConfirm(false);
+                  onLogout();
+                }}
+                style={[styles.modalButton, { backgroundColor: 'red' }]}
+              >
+                <Text style={{ color: 'white' }}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  sidebar: {
+    width: 260,
     backgroundColor: '#fff',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 2, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-  },
-  header: {
-    backgroundColor: '#007AFF',
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  profileSection: {
+    borderRightWidth: 1,
+    borderColor: '#eee',
+    paddingTop: 40,
     flex: 1,
   },
-  avatarContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  avatarText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  userRole: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 2,
-  },
-  userDepartment: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 18,
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  menuContainer: {
-    flex: 1,
-    paddingTop: 20,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  activeMenuItem: {
-    backgroundColor: '#f8f9fa',
-    borderRightWidth: 4,
-    borderRightColor: '#007AFF',
-  },
-  menuIcon: {
-    fontSize: 20,
-    marginRight: 16,
-    width: 24,
-    textAlign: 'center',
-  },
-  menuText: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
-  },
-  activeMenuText: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  footer: {
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    padding: 20,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  logoutButtonDisabled: {
-    opacity: 0.6,
-  },
-  logoutIcon: {
-    fontSize: 20,
-    marginRight: 16,
-    width: 24,
-    textAlign: 'center',
-  },
-  logoutText: {
-    fontSize: 16,
-    color: '#ff4444',
-    fontWeight: '500',
-  },
+  collapsed: { width: 70 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 20 },
+  logo: { fontWeight: 'bold', fontSize: 20 },
+  profile: { flexDirection: 'row', alignItems: 'center', padding: 16 },
+  profileName: { fontWeight: 'bold' },
+  profileRole: { fontSize: 12, color: '#888' },
+  menu: { flex: 1 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 16 },
+  menuLabel: { marginLeft: 16, fontSize: 16 },
+  subMenu: { paddingLeft: 32 },
+  subMenuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
+  bottom: { borderTopWidth: 1, borderColor: '#eee', padding: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: '#fff', padding: 24, borderRadius: 8, alignItems: 'center' },
+  modalButton: { marginHorizontal: 10, padding: 10, borderRadius: 5, backgroundColor: '#eee' },
 });
 
 export default Sidebar;

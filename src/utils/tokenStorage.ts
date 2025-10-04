@@ -29,12 +29,33 @@ export const tokenStorage = {
     }
   },
 
+
   async clearTokens() {
     try {
       await EncryptedStorage.removeItem('access_token');
       await EncryptedStorage.removeItem('refresh_token');
+      await EncryptedStorage.removeItem('user_role');
     } catch (error) {
       console.error('Error clearing tokens:', error);
+    }
+  },
+
+  async setUserRole(role: 'employee' | 'hr') {
+    try {
+      await EncryptedStorage.setItem('user_role', role);
+    } catch (error) {
+      console.error('Error storing user role:', error);
+    }
+  },
+
+  async getUserRole(): Promise<'employee' | 'hr' | null> {
+    try {
+      const role = await EncryptedStorage.getItem('user_role');
+      if (role === 'employee' || role === 'hr') return role;
+      return null;
+    } catch (error) {
+      console.error('Error getting user role:', error);
+      return null;
     }
   },
 
